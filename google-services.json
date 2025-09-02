@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1066287398419",
+    "project_id": "bytebank-native",
+    "storage_bucket": "bytebank-native.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1066287398419:android:6d076a411b42c04c9d09e6",
+        "android_client_info": {
+          "package_name": "com.bytebank.native"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDP5d3q4BiFZVYW2Ngm57yWzLsZX5dN55U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
