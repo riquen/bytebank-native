@@ -6,7 +6,7 @@ import {
 import { Stack } from 'expo-router'
 import { hideAsync, preventAutoHideAsync } from 'expo-splash-screen'
 import { useEffect } from 'react'
-import { SafeAreaView } from 'react-native-safe-area-context'
+import ToastManager from 'toastify-react-native'
 
 import '../styles/global.css'
 
@@ -22,8 +22,14 @@ export default function RootLayout() {
   if (!loaded && !error) return null
 
   return (
-    <SafeAreaView className="flex-1 bg-background">
-      <Stack screenOptions={{ headerShown: false }} />
-    </SafeAreaView>
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: '#E4EDE3' },
+        }}
+      />
+      <ToastManager />
+    </>
   )
 }
