@@ -7,6 +7,7 @@ import { Stack } from 'expo-router'
 import { hideAsync, preventAutoHideAsync } from 'expo-splash-screen'
 import { useEffect } from 'react'
 import ToastManager from 'toastify-react-native'
+import { StatusBar } from 'expo-status-bar'
 
 import '../styles/global.css'
 
@@ -23,6 +24,7 @@ export default function RootLayout() {
 
   return (
     <>
+      <StatusBar style="dark" />
       <Stack
         screenOptions={{
           headerShown: false,

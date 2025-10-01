@@ -32,7 +32,7 @@ export default function Login() {
       })
       if (error) throw error
       Toast.success('Login realizado com sucesso!')
-      router.replace('/')
+      router.replace('/(app)/(tabs)')
     } catch {
       Toast.error('Erro ao realizar login')
     } finally {
