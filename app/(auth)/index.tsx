@@ -46,10 +46,10 @@ export default function Login() {
       behavior={Platform.select({ ios: 'padding', android: undefined })}
     >
       <View className="flex-1 items-center justify-center px-6">
-        <View className="w-full max-w-[360px] gap-10">
+        <View className="w-full max-w-[360px] gap-10 items-center">
           <Logo width={156} height={94} />
 
-          <View className="gap-4">
+          <View className="gap-4 w-full">
             <TextInput
               value={email}
               onChangeText={setEmail}
@@ -58,12 +58,12 @@ export default function Login() {
               autoCapitalize="none"
               autoCorrect={false}
               textContentType="emailAddress"
-              className="py-3 px-3 rounded-lg border border-black/70 bg-white text-black"
+              className="w-full py-3 px-3 rounded-lg border border-black/70 bg-white text-black"
               accessibilityLabel="Campo de e-mail"
               returnKeyType="next"
             />
 
-            <View className="relative">
+            <View className="relative w-full">
               <TextInput
                 value={password}
                 onChangeText={setPassword}
@@ -92,7 +92,7 @@ export default function Login() {
             <Pressable
               disabled={!canSubmit}
               onPress={handleSubmit}
-              className={`py-3 rounded-lg items-center justify-center ${canSubmit ? 'bg-black' : 'bg-black/40'}`}
+              className={`w-full py-3 rounded-lg items-center justify-center ${canSubmit ? 'bg-black' : 'bg-black/40'}`}
               accessibilityRole="button"
               accessibilityState={{ disabled: !canSubmit }}
             >

@@ -1,11 +1,26 @@
 import { useEffect, useMemo, useState } from 'react'
-import { View, Text, TextInput, Pressable, Alert } from 'react-native'
+import { View, Text, TextInput, Pressable, Alert, FlatList } from 'react-native'
 import { useLocalSearchParams, router } from 'expo-router'
 import { Toast } from 'toastify-react-native'
+import { Ionicons } from '@expo/vector-icons'
+import * as DocumentPicker from 'expo-document-picker'
 import { supabase } from '@/utils/supabase'
+import {
+  uploadTransactionFile,
+  deleteTransactionFile,
+  deleteAllTransactionFiles,
+  filenameFromPath,
+  type PickedAsset,
+} from '@/utils/storage'
 import { Loader } from '@/components/Loader'
 
 type TxKind = { code: string; label: string; direction: 'inflow' | 'outflow' }
+type TxFile = {
+  id: string
+  path: string
+  content_type: string
+  created_at: string
+}
 
 function formatBRL(n: number) {
   try {
@@ -22,6 +37,8 @@ export default function EditTransactionScreen() {
   const [kinds, setKinds] = useState<TxKind[]>([])
   const [selectedKind, setSelectedKind] = useState<string>('')
   const [amountStr, setAmountStr] = useState('')
+
+  const [files, setFiles] = useState<TxFile[]>([])
 
   const handleAmountChange = (raw: string) => {
     let t = raw.replace(/\./g, ',').replace(/[^0-9,]/g, '')
@@ -41,6 +58,16 @@ export default function EditTransactionScreen() {
     const n = Number(amountStr.replace(/\./g, '').replace(',', '.'))
     return Number.isFinite(n) ? Math.round(n * 100) / 100 : NaN
   }, [amountStr])
+
+  const reloadFiles = async () => {
+    const { data, error } = await supabase
+      .from('transaction_files')
+      .select('id, path, content_type, created_at')
+      .eq('transaction_id', id)
+      .order('created_at', { ascending: false })
+    if (error) throw error
+    setFiles((data ?? []) as TxFile[])
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -75,6 +102,8 @@ export default function EditTransactionScreen() {
 
         setSelectedKind(tx.transaction_type)
         setAmountStr(String(tx.amount).replace('.', ','))
+
+        await reloadFiles()
       } catch (e) {
         console.error(e)
         Toast.error('Erro ao carregar transação')
@@ -111,7 +140,7 @@ export default function EditTransactionScreen() {
     }
   }
 
-  const handleDelete = async () => {
+  const handleDeleteTx = async () => {
     Alert.alert('Excluir', 'Deseja excluir esta transação?', [
       { text: 'Cancelar', style: 'cancel' },
       {
@@ -120,11 +149,15 @@ export default function EditTransactionScreen() {
         onPress: async () => {
           try {
             setSubmitting(true)
+
+            await deleteAllTransactionFiles(id)
+
             const { error } = await supabase
               .from('transactions')
               .delete()
               .eq('transaction_id', id)
             if (error) throw error
+
             Toast.success('Transação excluída')
             router.replace('/(app)/(tabs)/transactions')
           } catch (e) {
@@ -138,12 +171,71 @@ export default function EditTransactionScreen() {
     ])
   }
 
+  const pickAndUpload = async () => {
+    try {
+      const res = await DocumentPicker.getDocumentAsync({
+        type: ['application/pdf', 'image/png'],
+        multiple: false,
+        copyToCacheDirectory: true,
+      })
+      if (res.canceled) return
+      const asset = res.assets?.[0]
+      if (!asset) return
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      const uid = user?.id ?? ''
+      await uploadTransactionFile({
+        userId: uid,
+        transactionId: id,
+        asset: {
+          uri: asset.uri,
+          name: asset.name,
+          mimeType: asset.mimeType,
+        } as PickedAsset,
+      })
+      await reloadFiles()
+      Toast.success('Anexo adicionado')
+    } catch (e) {
+      console.error(e)
+      Toast.error('Falha ao enviar anexo')
+    }
+  }
+
+  const removeFile = async (file: TxFile) => {
+    Alert.alert(
+      'Remover anexo',
+      `Deseja remover ${filenameFromPath(file.path)}?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await deleteTransactionFile({
+                transactionId: id,
+                path: file.path,
+              })
+              await reloadFiles()
+              Toast.success('Anexo removido')
+            } catch (e) {
+              console.error(e)
+              Toast.error('Falha ao remover anexo')
+            }
+          },
+        },
+      ],
+    )
+  }
+
   if (loading) {
     return <Loader />
   }
 
   return (
-    <View className="flex-1 px-6 py-4 gap-16">
+    <View className="flex-1 px-6 py-4 gap-10">
       <View>
         <Text className="text-sm text-black/70 mb-2">Tipo</Text>
         <View className="flex-row flex-wrap gap-2">
@@ -154,11 +246,6 @@ export default function EditTransactionScreen() {
                 key={k.code}
                 onPress={() => setSelectedKind(k.code)}
                 className={`px-3 py-2 rounded-full border ${selected ? 'bg-[#004D61] border-[#004D61]' : 'bg-white border-black/20'}`}
-                style={{
-                  shadowOpacity: selected ? 0.2 : 0,
-                  shadowRadius: 3,
-                  shadowOffset: { width: 0, height: 1 },
-                }}
               >
                 <Text className={`${selected ? 'text-white' : 'text-black'}`}>
                   {k.label}
@@ -187,6 +274,52 @@ export default function EditTransactionScreen() {
         )}
       </View>
 
+      <View className="gap-2">
+        <Text className="text-sm text-black/70">Anexos</Text>
+
+        <Pressable
+          onPress={pickAndUpload}
+          className="flex-row items-center gap-2 bg-white border border-black/10 rounded-xl px-3 py-3 active:opacity-80"
+        >
+          <Ionicons name="attach-outline" size={18} color="#004D61" />
+          <Text className="text-[#004D61] font-semibold">
+            Adicionar anexo (PDF/PNG)
+          </Text>
+        </Pressable>
+
+        <FlatList
+          data={files}
+          keyExtractor={(f) => f.id}
+          renderItem={({ item }) => (
+            <View className="flex-row items-center justify-between bg-white border border-black/10 rounded-xl px-3 py-3 mt-2">
+              <View className="flex-row items-center gap-8">
+                <Ionicons
+                  name={
+                    item.content_type === 'application/pdf'
+                      ? 'document-text-outline'
+                      : 'image-outline'
+                  }
+                  size={18}
+                  color="#004D61"
+                />
+                <Text className="text-black">
+                  {filenameFromPath(item.path)}
+                </Text>
+              </View>
+              <Pressable
+                onPress={() => removeFile(item)}
+                className="px-2 py-1 rounded-md active:opacity-70"
+              >
+                <Text className="text-red-600 font-semibold">Remover</Text>
+              </Pressable>
+            </View>
+          )}
+          ListEmptyComponent={
+            <Text className="text-black/50 mt-2">Nenhum anexo</Text>
+          }
+        />
+      </View>
+
       <View className="gap-3">
         <Pressable
           disabled={!canSubmit}
@@ -197,7 +330,7 @@ export default function EditTransactionScreen() {
         </Pressable>
 
         <Pressable
-          onPress={handleDelete}
+          onPress={handleDeleteTx}
           className="py-3 rounded-xl items-center justify-center bg-red-600 active:opacity-80"
         >
           <Text className="text-white font-semibold">Excluir</Text>
